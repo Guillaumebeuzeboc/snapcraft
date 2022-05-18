@@ -1,0 +1,20 @@
+name: ros-node
+version: "1.0"
+summary: ROS Example
+description: Contains a ros node.
+
+base: core18
+confinement: strict
+grade: devel
+
+apps:
+  ros-node:
+    daemon: simple
+    stop-mode: sigterm
+    command: rosrun ros-node ros-node
+    plugs: [network-bind]
+
+parts:
+  ros-project:
+    plugin: catkin
+    source: .

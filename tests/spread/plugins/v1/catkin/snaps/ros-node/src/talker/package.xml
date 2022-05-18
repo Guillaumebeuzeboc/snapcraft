@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>ros-node</name>
+  <version>0.0.0</version>
+  <description>a ros node</description>
+  <maintainer email="me@example.com">me</maintainer>
+  <license>GPLv3</license>
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend condition="$ROS_VERSION == 1">roscpp</build_depend>
+  <exec_depend condition="$ROS_VERSION == 1">roscpp</exec_depend>
+</package>
