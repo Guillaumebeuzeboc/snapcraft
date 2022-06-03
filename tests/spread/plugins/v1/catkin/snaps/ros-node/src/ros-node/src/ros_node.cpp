@@ -26,7 +26,7 @@ int main(int argc, char** argv)
 
   ros::Rate loopRate(10);
 
-  const auto good_bye = Finally([] { std::cout << "Good bye!" << std::endl; });
+  const auto good_bye = Finally([] { std::cout << "Good bye!" std::endl; });
   std::cout << "Hello" << std::endl;
   ros::spin();
 

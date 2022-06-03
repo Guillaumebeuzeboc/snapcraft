@@ -23,8 +23,8 @@ execute: |
   cd "$SNAP_DIR"
   snapcraft
   sudo snap install ros-node_*.snap --dangerous
-  sleep 2
+  sleep 10
   snap stop ros-node
   sleep 1
 
-  journalctl -n 4 -u snap.ros-node.ros-node.service | MATCH "Good bye!"
+  journalctl -n 50 -u snap.ros-node.ros-node.service | MATCH "Good bye!"

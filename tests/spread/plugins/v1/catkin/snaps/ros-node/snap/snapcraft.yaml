@@ -10,9 +10,9 @@ grade: devel
 apps:
   ros-node:
     daemon: simple
-    stop-mode: sigterm
-    command: rosrun ros-node ros-node
-    plugs: [network-bind]
+    stop-mode: sigint
+    command: roslaunch ros-node node.launch
+    plugs: [network, network-bind]
 
 parts:
   ros-project:
