@@ -5,7 +5,7 @@
 class MinimalNode : public rclcpp::Node
 {
   public:
-    MinimalNode() : Node("minimal_publisher") {
+    MinimalNode() : Node("colcon_daemon") {
 		std::cout << "Hello" << std::endl;
 	}
 

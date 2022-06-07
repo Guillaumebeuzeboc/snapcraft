@@ -1,4 +1,4 @@
-name: ros-node
+name: colcon-daemon
 version: "1.0"
 summary: Colcon ROS2 daemon
 description: |
@@ -9,11 +9,11 @@ base: core18
 confinement: strict
 
 apps:
-  ros-node:
+  colcon-daemon:
     daemon: simple
     stop-mode: sigint-all
     stop-timeout: 10s
-    command: opt/ros/dashing/bin/ros2 run ros-node ros-node
+    command: opt/ros/dashing/bin/ros2 run colcon-daemon colcon-daemon
     plugs: [network, network-bind]
 
 parts:

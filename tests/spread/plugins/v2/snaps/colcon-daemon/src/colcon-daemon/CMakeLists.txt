@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
-project(ros-node)
+project(colcon-daemon)
 
 # Default to C++14
 if(NOT CMAKE_CXX_STANDARD)
@@ -15,6 +15,6 @@ find_package(rclcpp REQUIRED)
 
 ament_package()
 
-add_executable(ros-node main.cpp)
-ament_target_dependencies(ros-node rclcpp)
-install(TARGETS ros-node DESTINATION lib/${PROJECT_NAME})
+add_executable(${PROJECT_NAME} main.cpp)
+ament_target_dependencies(${PROJECT_NAME} rclcpp)
+install(TARGETS ${PROJECT_NAME} DESTINATION lib/${PROJECT_NAME})
