@@ -1,3 +1,0 @@
-<launch>
-    <node name = "ros_node" pkg = "ros-node" type = "ros-node" required = "true" output = "screen" />
-</launch>
