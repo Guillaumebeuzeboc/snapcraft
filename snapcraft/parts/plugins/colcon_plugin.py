@@ -55,69 +55,71 @@ specific to the ROS distro. If not using the extension, set these in your
       - ROS_DISTRO: "humble"
 """
 
-from typing import Literal, cast
+from pathlib import Path
+from typing import cast
 
-from craft_parts import plugins
 from craft_parts.packages.snaps import _get_parsed_snap
+from craft_parts.plugins import colcon_plugin
 from overrides import overrides
 
 from . import _ros
 
 
-class ColconPluginProperties(plugins.PluginProperties, frozen=True):
+class ColconPluginProperties(colcon_plugin.ColconPluginProperties, frozen=True):
     """The part properties used by the Colcon plugin."""
-
-    plugin: Literal["colcon"] = "colcon"
 
     colcon_ament_cmake_args: list[str] = []
     colcon_catkin_cmake_args: list[str] = []
-    colcon_cmake_args: list[str] = []
-    colcon_packages: list[str] = []
-    colcon_packages_ignore: list[str] = []
     colcon_ros_build_snaps: list[str] = []
 
-    # part properties required by the plugin
-    source: str  # type: ignore[reportGeneralTypeIssues]
 
-
-class ColconPlugin(_ros.RosPlugin):
+class ColconPlugin(colcon_plugin.ColconPlugin, _ros.RosPlugin):
     """Plugin for the colcon build tool."""
 
     properties_class = ColconPluginProperties
+
+    def _get_install_path(self) -> Path:
+        return super()._get_install_path() / Path("opt/ros/snap")
+
+    @overrides
+    def get_build_snaps(self) -> set[str]:
+        return colcon_plugin.ColconPlugin.get_build_snaps(
+            self
+        ) | _ros.RosPlugin.get_build_snaps(self)
 
     @overrides
     def get_build_packages(self) -> set[str]:
         base = self._part_info.base
         build_packages = {"python3-colcon-common-extensions"}
         if base == "core22":
-            build_packages |= {"python3-rosinstall", "python3-wstool"}
-        return super().get_build_packages() | build_packages
+            build_packages.update({"python3-rosinstall", "python3-wstool"})
+        return (
+            _ros.RosPlugin.get_build_packages(self)
+            | colcon_plugin.ColconPlugin.get_build_packages(self)
+            | build_packages
+        )
 
     @overrides
     def get_build_environment(self) -> dict[str, str]:
-        env = super().get_build_environment()
-        env.update(
-            {
-                "AMENT_PYTHON_EXECUTABLE": "/usr/bin/python3",
-                "COLCON_PYTHON_EXECUTABLE": "/usr/bin/python3",
-            }
-        )
+        env = _ros.RosPlugin.get_build_environment(self)
+        env.update(colcon_plugin.ColconPlugin.get_build_environment(self))
 
         return env
 
+    @overrides
     def _get_source_command(self, path: str) -> list[str]:
-        return [
-            f'if [ -f "{path}/opt/ros/${{ROS_DISTRO}}/local_setup.sh" ]; then',
-            'AMENT_CURRENT_PREFIX="{wspath}" . "{wspath}/local_setup.sh"'.format(
-                wspath=f"{path}/opt/ros/${{ROS_DISTRO}}"
-            ),
-            "fi",
-            f'if [ -f "{path}/opt/ros/snap/local_setup.sh" ]; then',
-            'COLCON_CURRENT_PREFIX="{wspath}" . "{wspath}/local_setup.sh"'.format(
-                wspath=f"{path}/opt/ros/snap"
-            ),
-            "fi",
-        ]
+        source_commands = colcon_plugin.ColconPlugin._get_source_command(self, path)
+
+        source_commands.extend(
+            [
+                f'if [ -f "{path}/opt/ros/snap/local_setup.sh" ]; then',
+                'COLCON_CURRENT_PREFIX="{wspath}" . "{wspath}/local_setup.sh"'.format(
+                    wspath=f"{path}/opt/ros/snap"
+                ),
+                "fi",
+            ]
+        )
+        return source_commands
 
     @overrides
     def _get_workspace_activation_commands(self) -> list[str]:
@@ -145,15 +147,9 @@ class ColconPlugin(_ros.RosPlugin):
                 )
             activation_commands.append("")
 
-        # Source ROS ws in stage-snaps next
-        activation_commands.append("## Sourcing ROS ws in stage snaps")
-        activation_commands.extend(self._get_source_command("${CRAFT_PART_INSTALL}"))
-        activation_commands.append("")
-
-        # Finally source system's ROS ws
-        activation_commands.append("## Sourcing ROS ws in system")
-        activation_commands.extend(self._get_source_command(""))
-        activation_commands.append("")
+        activation_commands.extend(
+            colcon_plugin.ColconPlugin._get_workspace_activation_commands(self)
+        )
 
         return activation_commands
 
@@ -161,35 +157,7 @@ class ColconPlugin(_ros.RosPlugin):
     def _get_build_commands(self) -> list[str]:
         options = cast(ColconPluginProperties, self._options)
 
-        build_command = [
-            "colcon",
-            "build",
-            "--base-paths",
-            '"${CRAFT_PART_SRC_WORK}"',
-            "--build-base",
-            '"${CRAFT_PART_BUILD}"',
-            "--merge-install",
-            "--install-base",
-            '"${CRAFT_PART_INSTALL}/opt/ros/snap"',
-        ]
-
-        if options.colcon_packages_ignore:
-            build_command.extend(["--packages-ignore", *options.colcon_packages_ignore])
-
-        if options.colcon_packages:
-            build_command.extend(["--packages-select", *options.colcon_packages])
-
-        # compile in release only if user did not set the build type in cmake-args
-        if not any("-DCMAKE_BUILD_TYPE=" in s for s in options.colcon_cmake_args):
-            build_command.extend(
-                [
-                    "--cmake-args",
-                    "-DCMAKE_BUILD_TYPE=Release",
-                    *options.colcon_cmake_args,
-                ]
-            )
-        elif len(options.colcon_cmake_args) > 0:
-            build_command.extend(["--cmake-args", *options.colcon_cmake_args])
+        build_command = colcon_plugin.ColconPlugin._get_build_commands(self)
 
         if options.colcon_ament_cmake_args:
             build_command.extend(
@@ -201,9 +169,6 @@ class ColconPlugin(_ros.RosPlugin):
                 ["--catkin-cmake-args", *options.colcon_catkin_cmake_args]
             )
 
-        # Specify the number of workers
-        build_command.extend(["--parallel-workers", '"${CRAFT_PARALLEL_BUILD_COUNT}"'])
-
         return ["## Build command", " ".join(build_command)] + [
             "## Post build command",
             # Remove the COLCON_IGNORE marker so that, at staging,
@@ -212,3 +177,8 @@ class ColconPlugin(_ros.RosPlugin):
             'rm "${CRAFT_PART_INSTALL}"/opt/ros/snap/COLCON_IGNORE',
             "fi",
         ]
+
+    @overrides
+    def get_build_commands(self) -> list[str]:
+        """Return a list of commands to run during the build step."""
+        return _ros.RosPlugin.get_build_commands(self)
